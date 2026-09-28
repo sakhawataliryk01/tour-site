@@ -1,0 +1,415 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  passwordHash  String
+  name          String?
+  role          Role       @default(ADMIN)
+  emailVerified DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  toursCreated  Tour[]
+  mediaCreated  Media[]
+  auditLogs     AuditLog[]
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Tour {
+  id                     String           @id @default(uuid())
+  slug                   String           @unique
+  title                  String
+  subtitle               String?
+  year                   Int
+  startDate              DateTime
+  endDate                DateTime
+  durationDays           Int
+  category               TourCategory     @default(STANDARD)
+  excerpt                String?          @db.Text
+  overview               String?          @db.Text
+  audienceNote           String?          @db.Text
+  heroMediaId            String?
+  minParticipants        Int              @default(22)
+  targetGroupSize        Int              @default(27)
+  language               String           @default("de")
+  registrationMode       RegistrationMode @default(OPEN)
+  registrationOpensAt    DateTime?
+  status                 TourStatus       @default(DRAFT)
+  availabilityNote       String?          @db.Text
+  availabilityUpdatedAt  DateTime?
+  seoTitle               String?
+  seoDescription         String?
+  ogMediaId              String?
+  flightNotes            String?          @db.Text
+  createdById            String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  createdBy              User?            @relation(fields: [createdById], references: [id])
+  heroMedia              Media?           @relation("TourHeroMedia", fields: [heroMediaId], references: [id])
+  ogMedia                Media?           @relation("TourOgMedia", fields: [ogMediaId], references: [id])
+  prices                 TourPriceOption[]
+  capacity               TourCapacity?
+  days                   TourDay[]
+  inclusions             TourInclusion[]
+  exclusions             TourExclusion[]
+  documents              TourDocument[]
+  people                 TourPerson[]
+  registrations          Registration[]
+  interestSignups        InterestSignup[]
+}
+
+model TourPriceOption {
+  id               String   @id @default(uuid())
+  tourId           String
+  tour             Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  code             String
+  label            String
+  currency         Currency @default(EUR)
+  amount           Decimal  @db.Decimal(10, 2)
+  includesFlight   Boolean  @default(false)
+  departureAirport String?  // e.g. "FRA", "MUC", "ZRH", "BER"
+  roomType         RoomType @default(DOUBLE)
+  isSurcharge      Boolean  @default(false)
+  parentOptionId   String?
+  sortOrder        Int      @default(0)
+  active           Boolean  @default(true)
+
+  registrations    Registration[]
+
+  @@unique([tourId, code])
+}
+
+model TourCapacity {
+  id                 String   @id @default(uuid())
+  tourId             String   @unique
+  tour               Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  doubleRooms        Int      @default(15)
+  singleRooms        Int      @default(5)
+  sharedDoubleMale   Int      @default(0)
+  sharedDoubleFemale Int      @default(0)
+  flightSeatsJson    String?  // JSON string
+}
+
+model TourDay {
+  id                 String   @id @default(uuid())
+  tourId             String
+  tour               Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  dayNumber          Int
+  date               DateTime
+  title              String
+  description        String?  @db.Text
+  mealsBreakfast     Boolean  @default(true)
+  mealsDinner        Boolean  @default(true)
+  mealsLunch         Boolean  @default(false)
+  accommodationLabel String?
+  notes              String?  @db.Text
+  sortOrder          Int      @default(0)
+}
+
+model TourInclusion {
+  id        String @id @default(uuid())
+  tourId    String
+  tour      Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  text      String
+  sortOrder Int    @default(0)
+}
+
+model TourExclusion {
+  id        String @id @default(uuid())
+  tourId    String
+  tour      Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  text      String
+  sortOrder Int    @default(0)
+}
+
+model Person {
+  id        String       @id @default(uuid())
+  slug      String       @unique
+  name      String
+  roleTitle String?
+  kind      PersonKind   @default(GUIDE)
+  bio       String?      @db.Text
+  photoId   String?
+  photo     Media?       @relation(fields: [photoId], references: [id])
+  sortOrder Int          @default(0)
+  published Boolean      @default(true)
+  tours     TourPerson[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model TourPerson {
+  id         String  @id @default(uuid())
+  tourId     String
+  tour       Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  personId   String
+  person     Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  roleOnTour String? // e.g. "GUIDE", "COMPANION"
+
+  @@unique([tourId, personId])
+}
+
+model Media {
+  id          String   @id @default(uuid())
+  storageKey  String   @unique
+  mime        String
+  width       Int?
+  height      Int?
+  alt         String?
+  blurhash    String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  toursHero   Tour[]   @relation("TourHeroMedia")
+  toursOg     Tour[]   @relation("TourOgMedia")
+  peoplePhoto Person[]
+  documents   TourDocument[]
+}
+
+model TourDocument {
+  id         String             @id @default(uuid())
+  tourId     String? // null means global document (e.g. travel conditions)
+  tour       Tour?              @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  type       DocumentType       @default(PROGRAM)
+  title      String
+  mediaId    String
+  media      Media              @relation(fields: [mediaId], references: [id])
+  visibility DocumentVisibility @default(PUBLIC)
+  published  Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model Registration {
+  id                String             @id @default(uuid())
+  publicId          String             @unique // human-readable, e.g. BS-2027-00041
+  tourId            String
+  tour              Tour               @relation(fields: [tourId], references: [id])
+  status            RegistrationStatus @default(NEW)
+  paymentStatus     PaymentStatus      @default(NONE)
+  salutation        Salutation         @default(MR)
+  firstName         String
+  lastName          String
+  firstNamePassport String
+  lastNamePassport  String
+  street            String
+  zip               String
+  city              String
+  country           String             @default("DE")
+  email             String
+  phoneMobile       String?
+  phonePrivate      String?
+  passportDob       DateTime
+  passportNation    String
+  passportNo        String?
+  passportExpiry    DateTime?
+  priceOptionId     String
+  priceOption       TourPriceOption    @relation(fields: [priceOptionId], references: [id])
+  roomType          RoomType           @default(DOUBLE)
+  roommateName      String?
+  roommateRelation  RoommateRelation?
+  allergies         String?            @db.Text
+  congregation      String?
+  notes             String?            @db.Text
+  termsAcceptedAt   DateTime
+  ipHash            String?
+  userAgentHash     String?
+  adminNotes        String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model InterestSignup {
+  id         String    @id @default(uuid())
+  tourId     String
+  tour       Tour      @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  name       String
+  email      String
+  notes      String?   @db.Text
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Inquiry {
+  id                String      @id @default(uuid())
+  type              InquiryType @default(CONTACT)
+  name              String
+  email             String
+  phone             String?
+  subject           String?
+  message           String      @db.Text
+  tourSlug          String?
+  participantsCount Int?
+  handled           Boolean     @default(false)
+  adminNotes        String?     @db.Text
+  createdAt         DateTime    @default(now())
+}
+
+model Page {
+  id             String   @id @default(uuid())
+  slug           String   @unique
+  title          String
+  body           String   @db.Text
+  seoTitle       String?
+  seoDescription String?
+  published      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Article {
+  id             String    @id @default(uuid())
+  slug           String    @unique
+  title          String
+  excerpt        String?   @db.Text
+  body           String    @db.Text
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  heroMediaId    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   String?  @db.Text
+  createdAt  DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum TourCategory {
+  STANDARD
+  RELAXED
+  BUDGET
+  YOUTH
+  SPECIAL
+  PRIVATE
+}
+
+enum TourStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum RegistrationMode {
+  CLOSED
+  INTEREST
+  OPEN
+  WAITLIST
+}
+
+enum Currency {
+  EUR
+  CHF
+}
+
+enum RoomType {
+  DOUBLE
+  SINGLE
+  SHARED_DOUBLE
+}
+
+enum PersonKind {
+  GUIDE
+  COMPANION
+  STAFF
+}
+
+enum DocumentType {
+  PROGRAM
+  CONDITIONS
+  ENTRY
+  CONTRACT
+  OTHER
+}
+
+enum DocumentVisibility {
+  PUBLIC
+  REGISTERED
+  ADMIN
+}
+
+enum RegistrationStatus {
+  NEW
+  REVIEWING
+  CONFIRMED
+  WAITLIST
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  NONE
+  DEPOSIT_DUE
+  DEPOSIT_PAID
+  FINAL_DUE
+  FINAL_PAID
+  REFUNDED
+  WAIVED
+}
+
+enum Salutation {
+  MR
+  MS
+}
+
+enum RoommateRelation {
+  MARRIED
+  RELATED
+  FRIENDS
+  ASSIGN
+}
+
+enum InquiryType {
+  CONTACT
+  GROUP
+}
