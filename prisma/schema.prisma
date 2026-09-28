@@ -187,7 +187,8 @@ model TourPerson {
 
 model Media {
   id          String   @id @default(uuid())
-  storageKey  String   @unique
+  storageKey  String   @unique // Cloudinary public_id
+  url         String?  // Cloudinary secure delivery URL
   mime        String
   width       Int?
   height      Int?

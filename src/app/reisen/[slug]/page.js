@@ -6,12 +6,11 @@ import { notFound } from 'next/navigation';
 import AvailabilityBadge from '@/components/tours/AvailabilityBadge';
 import ItineraryTimeline from '@/components/tours/ItineraryTimeline';
 import PriceTable from '@/components/tours/PriceTable';
+import TourHeroImage from '@/components/tours/TourHeroImage';
 import Link from 'next/link';
 import { 
   Calendar, 
   Clock, 
-  MapPin, 
-  Users, 
   ShieldCheck, 
   FileText, 
   CheckCircle, 
@@ -19,7 +18,6 @@ import {
   Info, 
   ArrowLeft,
   ChevronRight,
-  User,
   ExternalLink
 } from 'lucide-react';
 
@@ -129,47 +127,60 @@ export default async function DynamicTourOrYearPage({ params }) {
     <>
       <Header />
       <main className="flex-grow bg-paper pb-16">
-        {/* Banner Hero */}
-        <section className="bg-olive text-paper py-16 border-b border-stone-light/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="space-y-6 max-w-4xl">
-              {/* Back & Tag */}
-              <div className="flex flex-wrap items-center gap-3 text-xs font-sans font-semibold text-paper/70">
-                <Link href="/reisen" className="hover:text-paper flex items-center gap-1 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Übersicht
-                </Link>
-                <span>•</span>
-                <span className="uppercase tracking-widest text-terracotta bg-paper/10 px-2 py-0.5 rounded text-[10px]">
-                  {tour.category === 'YOUTH' ? 'Jugendreise' : tour.category === 'BUDGET' ? 'Budgetreise' : 'Standard-Studienreise'}
-                </span>
-                <span>•</span>
-                <span className="font-mono">Code: {tour.id.slice(0, 5).toUpperCase()}</span>
-              </div>
+        {/* Banner Hero — full-bleed 16:9 image when available */}
+        <section className="relative overflow-hidden border-b border-stone-light/10">
+          {tour.heroMedia ? (
+            <div className="absolute inset-0">
+              <TourHeroImage
+                media={tour.heroMedia}
+                alt={tour.heroMedia.alt || tour.title}
+                priority
+                sizes="100vw"
+                className="absolute inset-0"
+              />
+              <div className="absolute inset-0 bg-olive/75 mix-blend-multiply" />
+              <div className="absolute inset-0 bg-gradient-to-t from-olive via-olive/55 to-olive/30" />
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-olive" />
+          )}
 
-              {/* Title Block */}
-              <div className="space-y-2">
-                <h1 className="text-3xl sm:text-5xl font-serif font-extrabold tracking-tight text-paper leading-tight">
-                  {tour.title}
-                </h1>
-                {tour.subtitle && (
-                  <p className="text-lg sm:text-xl font-serif text-paper-dark/90 font-medium">
-                    {tour.subtitle}
-                  </p>
-                )}
-              </div>
-
-              {/* Badges and Dates Quick Info */}
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 border-t border-paper/10">
-                <AvailabilityBadge state={tour.availabilityState} />
-                <div className="flex items-center gap-2 font-sans text-sm font-semibold text-paper-dark">
-                  <Calendar className="w-4 h-4 text-terracotta" />
-                  <span>
-                    {formatDate(tour.startDate)} – {formatDate(tour.endDate)}
+          <div className="relative z-10 text-paper py-16 sm:py-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="space-y-6 max-w-4xl">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-sans font-semibold text-paper/70">
+                  <Link href="/reisen" className="hover:text-paper flex items-center gap-1 transition-colors">
+                    <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Übersicht
+                  </Link>
+                  <span>•</span>
+                  <span className="uppercase tracking-widest text-terracotta bg-paper/10 px-2 py-0.5 rounded text-[10px]">
+                    {tour.category === 'YOUTH' ? 'Jugendreise' : tour.category === 'BUDGET' ? 'Budgetreise' : 'Standard-Studienreise'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 font-sans text-sm font-semibold text-paper-dark">
-                  <Clock className="w-4 h-4 text-terracotta" />
-                  <span>{tour.durationDays} Tage</span>
+
+                <div className="space-y-2">
+                  <h1 className="text-3xl sm:text-5xl font-serif font-extrabold tracking-tight text-paper leading-tight drop-shadow-sm">
+                    {tour.title}
+                  </h1>
+                  {tour.subtitle && (
+                    <p className="text-lg sm:text-xl font-serif text-paper/90 font-medium">
+                      {tour.subtitle}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 border-t border-paper/15">
+                  <AvailabilityBadge state={tour.availabilityState} />
+                  <div className="flex items-center gap-2 font-sans text-sm font-semibold text-paper">
+                    <Calendar className="w-4 h-4 text-terracotta" />
+                    <span>
+                      {formatDate(tour.startDate)} – {formatDate(tour.endDate)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 font-sans text-sm font-semibold text-paper">
+                    <Clock className="w-4 h-4 text-terracotta" />
+                    <span>{tour.durationDays} Tage</span>
+                  </div>
                 </div>
               </div>
             </div>

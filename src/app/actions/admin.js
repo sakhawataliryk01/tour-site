@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deleteCloudinaryImage, uploadTourImage } from "@/lib/cloudinary";
 
 function slugify(text) {
   return text
@@ -43,8 +44,28 @@ const createTourSchema = z.object({
   status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
 });
 
+async function persistUploadedHero({ file, alt, userId }) {
+  if (!file || typeof file === "string" || file.size === 0) {
+    return null;
+  }
+
+  const uploaded = await uploadTourImage(file, { alt });
+
+  return prisma.media.create({
+    data: {
+      storageKey: uploaded.publicId,
+      url: uploaded.url,
+      mime: uploaded.mime,
+      width: uploaded.width,
+      height: uploaded.height,
+      alt: alt || uploaded.alt,
+      createdById: userId,
+    },
+  });
+}
+
 /**
- * Create a new tour from admin form
+ * Create a new tour from admin form (optional Cloudinary hero image)
  */
 export async function createTour(prevState, formData) {
   try {
@@ -52,6 +73,9 @@ export async function createTour(prevState, formData) {
     if (!session?.user) {
       return { success: false, message: "Nicht autorisiert." };
     }
+
+    const heroFile = formData.get("heroImage");
+    formData.delete("heroImage");
 
     const raw = Object.fromEntries(formData.entries());
     const validated = createTourSchema.parse(raw);
@@ -74,6 +98,21 @@ export async function createTour(prevState, formData) {
       slug = `${slug}-${Date.now().toString().slice(-4)}`;
     }
 
+    let heroMedia = null;
+    try {
+      heroMedia = await persistUploadedHero({
+        file: heroFile,
+        alt: validated.title,
+        userId: session.user.id,
+      });
+    } catch (uploadError) {
+      console.error("Hero upload failed:", uploadError);
+      return {
+        success: false,
+        message: uploadError.message || "Bild-Upload fehlgeschlagen.",
+      };
+    }
+
     const tour = await prisma.tour.create({
       data: {
         title: validated.title,
@@ -91,6 +130,7 @@ export async function createTour(prevState, formData) {
         registrationMode: validated.registrationMode,
         status: validated.status,
         createdById: session.user.id,
+        heroMediaId: heroMedia?.id || null,
         capacity: {
           create: {
             doubleRooms: validated.doubleRooms,
@@ -119,7 +159,11 @@ export async function createTour(prevState, formData) {
         action: "CREATE",
         entityType: "Tour",
         entityId: tour.id,
-        metadata: JSON.stringify({ slug: tour.slug, title: tour.title }),
+        metadata: JSON.stringify({
+          slug: tour.slug,
+          title: tour.title,
+          heroMediaId: heroMedia?.id || null,
+        }),
       },
     });
 
@@ -143,6 +187,135 @@ export async function createTour(prevState, formData) {
     }
     console.error("Error creating tour:", error);
     return { success: false, message: "Fehler beim Anlegen der Reise." };
+  }
+}
+
+/**
+ * Replace tour hero image — uploads new Cloudinary asset and deletes the old one.
+ */
+export async function updateTourHeroImage(tourId, formData) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, message: "Nicht autorisiert." };
+    }
+
+    const file = formData.get("heroImage");
+    if (!file || file.size === 0) {
+      return { success: false, message: "Bitte wählen Sie ein Bild aus." };
+    }
+
+    const tour = await prisma.tour.findUnique({
+      where: { id: tourId },
+      include: { heroMedia: true },
+    });
+
+    if (!tour) {
+      return { success: false, message: "Reise nicht gefunden." };
+    }
+
+    let newMedia;
+    try {
+      newMedia = await persistUploadedHero({
+        file,
+        alt: tour.title,
+        userId: session.user.id,
+      });
+    } catch (uploadError) {
+      return {
+        success: false,
+        message: uploadError.message || "Bild-Upload fehlgeschlagen.",
+      };
+    }
+
+    const oldMedia = tour.heroMedia;
+
+    await prisma.tour.update({
+      where: { id: tourId },
+      data: { heroMediaId: newMedia.id },
+    });
+
+    // Delete previous Cloudinary asset + Media row after successful swap
+    if (oldMedia) {
+      await deleteCloudinaryImage(oldMedia.storageKey);
+      try {
+        await prisma.media.delete({ where: { id: oldMedia.id } });
+      } catch (err) {
+        // Media may still be referenced as ogMedia elsewhere — ignore FK errors
+        console.warn("Could not delete old Media row:", oldMedia.id, err?.code);
+      }
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: session.user.id,
+        action: "UPDATE_HERO",
+        entityType: "Tour",
+        entityId: tour.id,
+        metadata: JSON.stringify({
+          oldMediaId: oldMedia?.id || null,
+          newMediaId: newMedia.id,
+        }),
+      },
+    });
+
+    revalidatePath("/admin/reisen");
+    revalidatePath("/reisen");
+    revalidatePath(`/reisen/${tour.slug}`);
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: "Titelbild aktualisiert. Das vorherige Bild wurde in Cloudinary gelöscht.",
+      url: newMedia.url,
+    };
+  } catch (error) {
+    console.error("Error updating tour hero:", error);
+    return { success: false, message: "Titelbild konnte nicht aktualisiert werden." };
+  }
+}
+
+/**
+ * Remove tour hero image and delete Cloudinary asset.
+ */
+export async function removeTourHeroImage(tourId) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, message: "Nicht autorisiert." };
+    }
+
+    const tour = await prisma.tour.findUnique({
+      where: { id: tourId },
+      include: { heroMedia: true },
+    });
+
+    if (!tour?.heroMedia) {
+      return { success: true, message: "Kein Titelbild vorhanden." };
+    }
+
+    const oldMedia = tour.heroMedia;
+
+    await prisma.tour.update({
+      where: { id: tourId },
+      data: { heroMediaId: null },
+    });
+
+    await deleteCloudinaryImage(oldMedia.storageKey);
+    try {
+      await prisma.media.delete({ where: { id: oldMedia.id } });
+    } catch {
+      /* ignore FK */
+    }
+
+    revalidatePath("/admin/reisen");
+    revalidatePath(`/reisen/${tour.slug}`);
+    revalidatePath("/");
+
+    return { success: true, message: "Titelbild entfernt." };
+  } catch (error) {
+    console.error("Error removing tour hero:", error);
+    return { success: false, message: "Titelbild konnte nicht entfernt werden." };
   }
 }
 

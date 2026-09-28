@@ -2,6 +2,11 @@
 
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  inquiryEmailTemplates,
+  interestEmailTemplates,
+  notifyAdminAndVisitor,
+} from "@/lib/email";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Bitte geben Sie Ihren vollständigen Namen ein."),
@@ -53,8 +58,12 @@ export async function submitContactInquiry(prevState, formData) {
       },
     });
 
-    // Simulate developer email logging in dev
-    console.log(`[EMAIL SIMULATION] Neue allgemeine Kontaktanfrage erhalten:`, inquiry);
+    const templates = inquiryEmailTemplates({ inquiry });
+    await notifyAdminAndVisitor({
+      ...templates,
+      visitorEmail: inquiry.email,
+      replyTo: inquiry.email,
+    });
 
     return {
       success: true,
@@ -104,7 +113,12 @@ export async function submitGroupInquiry(prevState, formData) {
       },
     });
 
-    console.log(`[EMAIL SIMULATION] Neue Gruppenanfrage erhalten:`, inquiry);
+    const templates = inquiryEmailTemplates({ inquiry });
+    await notifyAdminAndVisitor({
+      ...templates,
+      visitorEmail: inquiry.email,
+      replyTo: inquiry.email,
+    });
 
     return {
       success: true,
@@ -151,7 +165,12 @@ export async function submitInterestSignup(prevState, formData) {
       },
     });
 
-    console.log(`[EMAIL SIMULATION] Neue Vormerkung Interessenliste:`, signup);
+    const templates = interestEmailTemplates({ tour: signup.tour, signup });
+    await notifyAdminAndVisitor({
+      ...templates,
+      visitorEmail: signup.email,
+      replyTo: signup.email,
+    });
 
     return {
       success: true,

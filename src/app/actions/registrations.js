@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { notifyAdminAndVisitor, registrationEmailTemplates } from "@/lib/email";
 
 const registrationSchema = z.object({
   tourId: z.string().uuid("Ungültige Reise-ID."),
@@ -104,10 +105,17 @@ export async function submitRegistration(payload) {
       },
     });
 
-    // 5. Simulate dev emails
-    console.log(`[EMAIL SIMULATION] Neue Anmeldung erhalten für Tour: ${tour.title}`);
-    console.log(`[EMAIL SIMULATION] Buchungs-ID: ${publicId}`);
-    console.log(`[EMAIL SIMULATION] Teilnehmer: ${validated.salutation === 'MR' ? 'Herr' : 'Frau'} ${validated.firstName} ${validated.lastName}`);
+    // 5. Resend emails (admin + visitor confirmation)
+    const templates = registrationEmailTemplates({
+      tour,
+      registration: validated,
+      publicId,
+    });
+    await notifyAdminAndVisitor({
+      ...templates,
+      visitorEmail: validated.email,
+      replyTo: validated.email,
+    });
 
     return {
       success: true,
