@@ -14,7 +14,7 @@ import {
 
 export const metadata = {
   title: 'Reiseinformationen & Vorbereitung — Israel',
-  description: 'Wichtige Hinweise zur Einreise, Sicherheit, Bekleidung, Währung und Gesundheit für Ihre anstehende Israelreise mit Beth-Shalom.',
+  description: 'Wichtige Hinweise zur Einreise, Sicherheit, Bekleidung, Währung und Gesundheit für Ihre anstehende Israelreise mit Kaiser Tours.',
 };
 
 export default function ReiseinformationenPage() {

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 
 export const metadata = {
-  title: 'Unverbindliche Interessenliste — Beth-Shalom',
+  title: 'Unverbindliche Interessenliste — Kaiser Tours',
   description: 'Tragen Sie sich unverbindlich auf der Interessenliste ein, um benachrichtigt zu werden, sobald die Buchungsphase startet.',
 };
 

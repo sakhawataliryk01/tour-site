@@ -26,12 +26,16 @@ async function main() {
   await prisma.user.deleteMany({});
 
   // 2. Create Admin User
-  const adminPasswordHash = bcrypt.hashSync('SecureAdminPassword123!', 10);
+  const adminEmail = (process.env.ADMIN_INITIAL_EMAIL || 'admin@kaiser-tours.de')
+    .trim()
+    .toLowerCase();
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'SecureAdminPassword123!';
+  const adminPasswordHash = bcrypt.hashSync(adminPassword, 10);
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@beth-shalom.ch',
+      email: adminEmail,
       passwordHash: adminPasswordHash,
-      name: 'Bettina Malgo',
+      name: 'Administrator',
       role: 'ADMIN',
     },
   });
@@ -52,7 +56,7 @@ async function main() {
     data: {
       storageKey: 'reisebedingungen-2025.pdf',
       mime: 'application/pdf',
-      alt: 'Allgemeine Reisebedingungen von Beth-Shalom Reisen',
+      alt: 'Allgemeine Reisebedingungen von Kaiser Tours',
     },
   });
 
@@ -63,7 +67,7 @@ async function main() {
       name: 'Fredi Winkler',
       roleTitle: 'Dipl. Reiseleiter',
       kind: 'GUIDE',
-      bio: 'Fredi Winkler lebt seit 1973 in Haifa, Israel, und leitet zusammen mit seiner Frau das Beth-Shalom Gästehaus. Er führt fachkundig deutschsprachige Reisegruppen durchs Land und schöpft dabei aus jahrzehntelanger archäologischer und biblischer Erfahrung.',
+      bio: 'Fredi Winkler lebt seit 1973 in Haifa, Israel. Er führt fachkundig deutschsprachige Reisegruppen durchs Land und schöpft dabei aus jahrzehntelanger archäologischer und biblischer Erfahrung.',
       published: true,
     },
   });
@@ -74,7 +78,7 @@ async function main() {
       name: 'Ariel Winkler',
       roleTitle: 'Dipl. Reiseleiter',
       kind: 'GUIDE',
-      bio: 'Ariel Winkler wuchs in Israel auf, absolvierte dort seine theologische Ausbildung sowie die anerkannte staatliche Ausbildung zum lizenzierten Reiseleiter. Er ist Teil des Beth-Shalom-Teams in Haifa und führt mit Leidenschaft Gruppen durch das Land.',
+      bio: 'Ariel Winkler wuchs in Israel auf, absolvierte dort seine theologische Ausbildung sowie die anerkannte staatliche Ausbildung zum lizenzierten Reiseleiter. Er führt mit Leidenschaft Gruppen durch das Land.',
       published: true,
     },
   });
@@ -85,7 +89,7 @@ async function main() {
       name: 'Govert Roos',
       roleTitle: 'Reisebegleitung',
       kind: 'COMPANION',
-      bio: 'Govert Roos lebt und arbeitet seit 1973 beim Missionswerk Mitternachtsruf. Er betreut die Gruppen musikalisch und seelsorglich und bereichert die Abende mit Andachten und Gemeinschaft.',
+      bio: 'Govert Roos begleitet Reisegruppen musikalisch und seelsorglich und bereichert die Abende mit Andachten und Gemeinschaft.',
       published: true,
     },
   });
@@ -96,7 +100,7 @@ async function main() {
       name: 'Hendrik Malgo',
       roleTitle: 'Reisebegleitung',
       kind: 'COMPANION',
-      bio: 'Hendrik Malgo leitet den Verlag und die Videoarbeit beim Mitternachtsruf. Er beschäftigt sich intensiv mit biblischen Themen und begleitet Israelreisen mit tiefgehenden Andachten.',
+      bio: 'Hendrik Malgo beschäftigt sich intensiv mit biblischen Themen und begleitet Israelreisen mit tiefgehenden Andachten.',
       published: true,
     },
   });
@@ -124,7 +128,7 @@ async function main() {
       registrationMode: 'OPEN',
       status: 'PUBLISHED',
       seoTitle: 'Budgetreise Israel 2027 | Christliche Rundreise',
-      seoDescription: 'Erleben Sie das Heilige Land kompakt & preiswert vom 22. Februar bis 1. März 2027. Geführte Rundreise ab € 1’520.– mit Beth-Shalom.',
+      seoDescription: 'Erleben Sie das Heilige Land kompakt & preiswert vom 22. Februar bis 1. März 2027. Geführte Rundreise ab € 1’520.– mit Kaiser Tours.',
       flightNotes: 'Flüge mit der israelischen El-Al. Flugzeiten: FRA: 11:00-16:00, ZRH: 12:40-17:30.',
     },
   });
@@ -382,8 +386,8 @@ async function main() {
     {
       dayNumber: 4,
       title: 'Wüste Juda, Totes Meer & Fahrt nach Galiläa',
-      description: 'Wir verlassen Jerusalem und fahren hinab in die Wüste Juda. Unser erster Halt ist Qumran, der berühmte Fundort der 2000 Jahre alten Jesaja-Schriftrollen. Danach bietet sich die einzigartige Gelegenheit zu einem entspannenden Bad im salz- und mineralreichen Toten Meer. Anschliessend fahren wir nordwärts durch das landschaftlich reizvolle Jordantal. Vorbei an der antiken Dekapolis-Stadt Beth-Shean und dem Gilboa-Gebirge erreichen wir Haifa. Abendessen und Übernachtung im Gästehaus Beth-Shalom.',
-      accommodationLabel: 'Gästehaus Beth-Shalom, Haifa',
+      description: 'Wir verlassen Jerusalem und fahren hinab in die Wüste Juda. Unser erster Halt ist Qumran, der berühmte Fundort der 2000 Jahre alten Jesaja-Schriftrollen. Danach bietet sich die einzigartige Gelegenheit zu einem entspannenden Bad im salz- und mineralreichen Toten Meer. Anschliessend fahren wir nordwärts durch das landschaftlich reizvolle Jordantal. Vorbei an der antiken Dekapolis-Stadt Beth-Shean und dem Gilboa-Gebirge erreichen wir Haifa. Abendessen und Übernachtung in Haifa.',
+      accommodationLabel: 'Hotel in Haifa',
       mealsBreakfast: true,
       mealsDinner: true,
     },
@@ -391,7 +395,7 @@ async function main() {
       dayNumber: 5,
       title: 'Haifa, Karmelgebirge, Elia-Opferstätte & Caesarea',
       description: 'Morgens machen wir eine kleine Rundfahrt durch Haifa und spazieren an den wunderschönen Bahai-Gärten vorbei zur historischen deutschen Templer-Kolonie. Danach fahren wir hinauf auf den Karmel zur Elia-Opferstätte Muchraka, von wo aus wir einen weiten Blick über die geschichtsträchtige Jesreel-Ebene (Harmagedon) geniessen. Am Nachmittag besichtigen wir das antike Caesarea am Mittelmeer, Wirkungsort des Apostels Paulus und des Hauptmanns Kornelius, bevor wir die Möglichkeit zu einem Bad im Mittelmeer nutzen.',
-      accommodationLabel: 'Gästehaus Beth-Shalom, Haifa',
+      accommodationLabel: 'Hotel in Haifa',
       mealsBreakfast: true,
       mealsDinner: true,
     },
@@ -399,7 +403,7 @@ async function main() {
       dayNumber: 6,
       title: 'Rund um den See Genezareth: Wirkungsstätten Jesu',
       description: 'Ein Tag ganz im Zeichen des Wirkens Jesu. Wir fahren zum Berg der Seligpreisungen und besichtigen die Kirche inmitten herrlicher Gärten. Danach geht es nach Tabgha (Ort der Brotvermehrung und der Wiederherstellung des Petrus am Seeufer) und weiter nach Kapernaum, der "Wohnstadt" Jesu. Ein emotionaler Höhepunkt ist eine stimmungsvolle Bootsfahrt auf dem ruhigen See Genezareth. Bevor wir nach Haifa zurückkehren, besuchen wir einen lokalen Kibbutzmarkt mit Datteln und israelischen Spezialitäten.',
-      accommodationLabel: 'Gästehaus Beth-Shalom, Haifa',
+      accommodationLabel: 'Hotel in Haifa',
       mealsBreakfast: true,
       mealsDinner: true,
     },
@@ -407,7 +411,7 @@ async function main() {
       dayNumber: 7,
       title: 'Norden Israels: Jordanquellen, Dan & Caesarea Philippi',
       description: 'Wir fahren in den äussersten Norden Israels. Wir spazieren durch das wunderschöne Naturreservat der Dan-Quelle, der reichsten Jordanquelle, wo Jerobeam einst eines der goldenen Kälber aufstellte. Weiter geht es zur Baniasquelle, dem antiken Caesarea Philippi am Fusse des Hermongebirges. Hier stellte Jesus seinen Jüngern die Kernfrage: "Für wen haltet ihr mich?". Auf der Rückfahrt überqueren wir die Golanhöhen und werfen vom Berg Ben Tal einen Blick in das angrenzende Hulatal.',
-      accommodationLabel: 'Gästehaus Beth-Shalom, Haifa',
+      accommodationLabel: 'Hotel in Haifa',
       mealsBreakfast: true,
       mealsDinner: true,
     },
@@ -468,15 +472,15 @@ async function main() {
         slug: 'reiseinformationen',
         title: 'Bedingungen & Reiseinformationen',
         body: '<h3>Zielgruppe</h3><p>Unsere Israelreisen werden gerne von Familien, Ehepaaren und Singles jeden Alters gebucht. Unsere Reisen sind christlich geprägt — wir reisen mit der Bibel durch das Land.</p><h3>Reisepass & Einreise</h3><p>Jeder Teilnehmer benötigt einen Reisepass, der am Rückreisetag noch mindestens 6 Monate gültig ist. Ab 2025 ist zwingend die Online-Einreisegenehmigung ETA-IL zu beantragen.</p>',
-        seoTitle: 'Wichtige Reiseinformationen Israel | Beth-Shalom',
+        seoTitle: 'Wichtige Reiseinformationen Israel | Kaiser Tours',
         seoDescription: 'Alle wichtigen Informationen zu Reisepass, Impfungen, ETA-IL, Bekleidung, Versicherungen und finanziellen Bedingungen für Ihre Israelreise.',
       },
       {
         slug: 'unsere-arbeit',
-        title: 'Unsere Arbeit & Mission',
-        body: '<p>Beth-Shalom-Reisen ist eine Abteilung des Missionswerkes Mitternachtsruf. Seit 1970 werden biblisch orientierte Israelreisen durchgeführt, welche die Arbeit des Missionswerkes sowie soziale Projekte vor Ort in Israel unterstützen.</p>',
-        seoTitle: 'Unsere Israelarbeit & Mission | Beth-Shalom',
-        seoDescription: 'Erfahren Sie mehr über die über 50-jährige Geschichte des Gästehauses Beth-Shalom in Haifa und die Partnerschaft mit dem Missionswerk Mitternachtsruf.',
+        title: 'Unsere Arbeit',
+        body: '<p>Kaiser Tours organisiert biblisch orientierte Israelreisen für den deutschsprachigen Raum. Unsere Programme verbinden historische Schauplätze, fachkundige Führung und eine ruhige, geistlich offene Gruppenatmosphäre.</p>',
+        seoTitle: 'Über Kaiser Tours | Israelreisen',
+        seoDescription: 'Erfahren Sie mehr über Kaiser Tours und unsere christlich geprägten Israelreisen.',
       },
     ],
   });

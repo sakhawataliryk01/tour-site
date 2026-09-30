@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ChevronDown, Calendar, Info, Users, Phone } from 'lucide-react';
+import Image from 'next/image';
+import { Menu, X, ChevronDown, Calendar, Info, Users, Phone, Map } from 'lucide-react';
+import { site } from '@/lib/site';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,7 +24,7 @@ export default function Header() {
       ],
     },
     { name: 'Reiseinfos', href: '/reiseinformationen', icon: Info },
-    { name: 'Über Israel', href: '/israel', icon: Info },
+    { name: 'Über Israel', href: '/israel', icon: Map },
     { name: 'Über uns', href: '/ueber-uns', icon: Users },
     { name: 'Unser Team', href: '/team', icon: Users },
     { name: 'Kontakt', href: '/kontakt', icon: Phone },
@@ -42,10 +44,15 @@ export default function Header() {
           {/* Logo & Branding */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="group flex items-center gap-3">
-              <span className="font-serif text-2xl tracking-wide text-olive group-hover:text-olive-light transition-colors font-bold">
-                BETH-SHALOM
-              </span>
-              <span className="hidden sm:inline border-l border-stone h-6"></span>
+              <Image
+                src={site.logos.light}
+                alt={site.name}
+                width={172}
+                height={89}
+                className="h-12 w-auto sm:h-14"
+                priority
+              />
+              <span className="hidden sm:inline border-l border-stone h-8" />
               <span className="hidden sm:inline font-sans text-xs tracking-widest text-ink/75 uppercase">
                 Israelreisen
               </span>

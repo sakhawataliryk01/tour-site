@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Calendar, Clock } from 'lucide-react';
 import AvailabilityBadge from './AvailabilityBadge';
 import TourHeroImage from './TourHeroImage';
+import { formatMoney } from '@/lib/format';
 
 export default function TourCard({ tour }) {
   const formatDate = (dateStr) => {
@@ -10,15 +11,6 @@ export default function TourCard({ tour }) {
       month: '2-digit',
       year: 'numeric',
     }).format(new Date(dateStr));
-  };
-
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: tour.minPrice?.currency || 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (
@@ -71,8 +63,10 @@ export default function TourCard({ tour }) {
             <span className="text-[10px] tracking-wider uppercase text-ink/40 font-semibold font-sans">
               Ab
             </span>
-            <span className="text-lg font-serif font-bold text-olive">
-              {tour.minPrice ? formatPrice(tour.minPrice.amount) : 'Auf Anfrage'}
+            <span className="text-lg font-serif font-bold text-olive tabular-nums">
+              {tour.minPrice
+                ? formatMoney(tour.minPrice.amount, tour.minPrice.currency)
+                : 'Auf Anfrage'}
             </span>
           </div>
 

@@ -1,0 +1,21 @@
+{
+  "name": "Kaiser Tours",
+  "short_name": "Kaiser Tours",
+  "description": "Israelreisen — Bibel, Land, Volk",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#3c4a3e",
+  "background_color": "#f7f4ec",
+  "display": "standalone"
+}

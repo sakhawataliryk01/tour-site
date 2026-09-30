@@ -7,12 +7,12 @@ const resend = process.env.RESEND_API_KEY
 const FROM =
   process.env.RESEND_FROM ||
   process.env.SMTP_FROM ||
-  'Beth-Shalom Reisen <onboarding@resend.dev>';
+  'Kaiser Tours <onboarding@resend.dev>';
 
 const ADMIN_TO =
   process.env.RESEND_ADMIN_TO ||
   process.env.ADMIN_INITIAL_EMAIL ||
-  'admin@beth-shalom.ch';
+  'info@kaiser-tours.de';
 
 export function isEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY);
@@ -109,15 +109,16 @@ export function registrationEmailTemplates({ tour, registration, publicId }) {
       <p><strong>Teilnehmer:</strong> ${escapeHtml(salutation)} ${escapeHtml(name)}</p>
       <p><strong>E-Mail:</strong> ${escapeHtml(registration.email)}</p>
       <p><strong>Zimmer:</strong> ${escapeHtml(registration.roomType)}</p>
+      <p><strong>Zahlungsstatus:</strong> Online bezahlt (Stripe)</p>
     `,
-    visitorSubject: `Ihre Anmeldung ${publicId} — Beth-Shalom Reisen`,
+    visitorSubject: `Ihre Anmeldung ${publicId} — Kaiser Tours`,
     visitorHtml: `
       <h2>Vielen Dank für Ihre Anmeldung</h2>
       <p>Guten Tag ${escapeHtml(salutation)} ${escapeHtml(registration.lastName)},</p>
-      <p>wir haben Ihre Anmeldung für <strong>${escapeHtml(tour.title)}</strong> erhalten.</p>
+      <p>wir haben Ihre Anmeldung für <strong>${escapeHtml(tour.title)}</strong> erhalten und die Online-Zahlung erfolgreich verbucht.</p>
       <p>Ihre Buchungsnummer lautet: <strong>${escapeHtml(publicId)}</strong></p>
-      <p>Sie erhalten in Kürze die schriftliche Reisebestätigung / Rechnung. Die Zahlung erfolgt per Banküberweisung nach Erhalt der Rechnung.</p>
-      <p>Herzliche Grüsse<br/>Beth-Shalom Reisen</p>
+      <p>Sie erhalten in Kürze die schriftliche Reisebestätigung. Bei Fragen antworten Sie einfach auf diese E-Mail.</p>
+      <p>Herzliche Grüsse<br/>Kaiser Tours</p>
     `,
   };
 }
@@ -135,12 +136,12 @@ export function inquiryEmailTemplates({ inquiry }) {
       ${inquiry.participantsCount ? `<p><strong>Teilnehmer:</strong> ${inquiry.participantsCount}</p>` : ''}
       <p>${escapeHtml(inquiry.message).replace(/\n/g, '<br/>')}</p>
     `,
-    visitorSubject: 'Wir haben Ihre Nachricht erhalten — Beth-Shalom Reisen',
+    visitorSubject: 'Wir haben Ihre Nachricht erhalten — Kaiser Tours',
     visitorHtml: `
       <h2>Vielen Dank für Ihre Nachricht</h2>
       <p>Guten Tag ${escapeHtml(inquiry.name)},</p>
       <p>wir haben Ihre Anfrage erhalten und melden uns so bald wie möglich.</p>
-      <p>Herzliche Grüsse<br/>Beth-Shalom Reisen</p>
+      <p>Herzliche Grüsse<br/>Kaiser Tours</p>
     `,
   };
 }
@@ -160,7 +161,7 @@ export function interestEmailTemplates({ tour, signup }) {
       <h2>Ihre Vormerkung ist eingegangen</h2>
       <p>Guten Tag ${escapeHtml(signup.name)},</p>
       <p>wir haben Sie auf der Interessenliste für <strong>${escapeHtml(tour.title)}</strong> vorgemerkt und benachrichtigen Sie, sobald die Anmeldung startet.</p>
-      <p>Herzliche Grüsse<br/>Beth-Shalom Reisen</p>
+      <p>Herzliche Grüsse<br/>Kaiser Tours</p>
     `,
   };
 }

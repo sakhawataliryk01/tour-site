@@ -6,7 +6,7 @@ import { ImagePlus, Trash2, Loader2 } from "lucide-react";
 
 /** Recommended: 1920×1080 (16:9), max 5 MB */
 export const HERO_HINT =
-  "Empfohlen: 1920 × 1080 px (16:9), JPEG/WebP/PNG, max. 5 MB.";
+  "Empfohlen: 1920 × 1080 px (16:9), max. 5 MB. Wird automatisch als WebP optimiert.";
 
 export default function TourImageField({
   value,
