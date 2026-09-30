@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { submitRegistration } from "@/app/actions/registrations";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import PhoneInput from "@/components/forms/PhoneInput";
+import { reformatPhoneForCountry } from "@/lib/phone-format";
+import { computeRegistrationChargeTotal } from "@/lib/pricing";
 import { 
   Check, 
   ChevronRight, 
@@ -55,6 +59,15 @@ export default function RegistrationWizard({ tour }) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const updateCountry = (country) => {
+    setFormData((prev) => ({
+      ...prev,
+      country,
+      phoneMobile: reformatPhoneForCountry(prev.phoneMobile, country),
+      phonePrivate: reformatPhoneForCountry(prev.phonePrivate, country),
+    }));
+  };
+
   const handleNext = () => {
     // Basic validations for current steps
     const stepErrors = {};
@@ -105,25 +118,38 @@ export default function RegistrationWizard({ tour }) {
     });
 
     setLoading(false);
-    if (res.success) {
-      // Redirect to confirmation route with dynamic parameters
+    if (res.success && res.checkoutUrl) {
+      window.location.href = res.checkoutUrl;
+      return;
+    }
+    if (res.success && res.publicId) {
       router.push(`/reisen/${tour.slug}/anmeldung/bestaetigt?id=${res.publicId}`);
+      return;
+    }
+
+    if (res.errors) {
+      setErrors(res.errors);
+      if (res.errors.priceOptionId) setStep(1);
+      else if (res.errors.firstName || res.errors.lastName || res.errors.email) setStep(2);
+      else if (res.errors.passportDob || res.errors.firstNamePassport) setStep(3);
     } else {
-      if (res.errors) {
-        setErrors(res.errors);
-        // Map backend errors to correct steps if needed
-        if (res.errors.priceOptionId) setStep(1);
-        else if (res.errors.firstName || res.errors.lastName || res.errors.email) setStep(2);
-        else if (res.errors.passportDob || res.errors.firstNamePassport) setStep(3);
-      } else {
-        setStatus({ success: false, message: res.message });
-      }
+      setStatus({ success: false, message: res.message });
     }
   };
 
   // Find currently selected price details
   const selectedPriceOption = tour.prices?.find(p => p.id === formData.priceOptionId);
-  const singleRoomSurcharge = tour.prices?.find(p => p.isSurcharge && p.roomType === "SINGLE");
+  const singleRoomSurcharge = tour.prices?.find(
+    (p) =>
+      p.isSurcharge &&
+      p.roomType === "SINGLE" &&
+      (!selectedPriceOption || p.currency === selectedPriceOption.currency),
+  );
+  const chargeTotal = computeRegistrationChargeTotal({
+    priceOption: selectedPriceOption,
+    roomType: formData.roomType,
+    allPrices: tour.prices || [],
+  });
 
   const formatPrice = (amount, currency) => {
     return new Intl.NumberFormat("de-DE", {
@@ -276,7 +302,11 @@ export default function RegistrationWizard({ tour }) {
               <Info className="w-5 h-5 text-terracotta flex-shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-olive block mb-0.5">Hinweis zum Einzelzimmer:</span>
-                Es fällt ein Einzelzimmer-Zuschlag von <strong>{singleRoomSurcharge.currency} {Number(singleRoomSurcharge.amount)}</strong> an. Dieser wird manuell auf der Reisebestätigung / Rechnung addiert.
+                Es fällt ein Einzelzimmer-Zuschlag von{" "}
+                <strong>
+                  {formatPrice(Number(singleRoomSurcharge.amount), singleRoomSurcharge.currency)}
+                </strong>{" "}
+                an. Dieser wird bei der Online-Zahlung (Stripe) zum Paketpreis hinzugerechnet.
               </div>
             </div>
           )}
@@ -353,24 +383,40 @@ export default function RegistrationWizard({ tour }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1 sm:col-span-2">
+              <label className="block text-xs font-bold text-ink/65 uppercase">Land <span className="text-terracotta">*</span></label>
+              <select
+                value={formData.country}
+                onChange={(e) => updateCountry(e.target.value)}
+                className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none max-w-md"
+              >
+                <option value="CH">Schweiz (+41)</option>
+                <option value="DE">Deutschland (+49)</option>
+                <option value="AT">Österreich (+43)</option>
+                <option value="FR">Frankreich (+33)</option>
+                <option value="IT">Italien (+39)</option>
+              </select>
+              <p className="text-[11px] text-ink/50 font-medium">
+                Telefonnummern werden automatisch mit Ländervorwahl formatiert (z.&nbsp;B. +41 79 123 45 67).
+              </p>
+            </div>
+
             <div className="space-y-1">
               <label className="block text-xs font-bold text-ink/65 uppercase">Mobiltelefon <span className="text-ink/45">(Empfohlen)</span></label>
-              <input
-                type="text"
+              <PhoneInput
                 value={formData.phoneMobile}
-                onChange={(e) => updateField("phoneMobile", e.target.value)}
+                onChange={(v) => updateField("phoneMobile", v)}
+                country={formData.country}
                 className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none"
-                placeholder="z.B. +41 79 123 45 67"
               />
             </div>
             <div className="space-y-1">
               <label className="block text-xs font-bold text-ink/65 uppercase">Telefon Festnetz <span className="text-ink/45">(Optional)</span></label>
-              <input
-                type="text"
+              <PhoneInput
                 value={formData.phonePrivate}
-                onChange={(e) => updateField("phonePrivate", e.target.value)}
+                onChange={(v) => updateField("phonePrivate", v)}
+                country={formData.country}
                 className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none"
-                placeholder="z.B. +41 44 801 80 00"
               />
             </div>
           </div>
@@ -388,7 +434,7 @@ export default function RegistrationWizard({ tour }) {
             {errors.street && <p className="text-xs text-terracotta font-medium mt-0.5">{errors.street}</p>}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="block text-xs font-bold text-ink/65 uppercase">PLZ <span className="text-terracotta">*</span></label>
               <input
@@ -412,20 +458,6 @@ export default function RegistrationWizard({ tour }) {
                 placeholder="Dübendorf"
               />
               {errors.city && <p className="text-xs text-terracotta font-medium mt-0.5">{errors.city}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-ink/65 uppercase">Land <span className="text-terracotta">*</span></label>
-              <select
-                value={formData.country}
-                onChange={(e) => updateField("country", e.target.value)}
-                className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none"
-              >
-                <option value="CH">Schweiz</option>
-                <option value="DE">Deutschland</option>
-                <option value="AT">Österreich</option>
-                <option value="FR">Frankreich</option>
-                <option value="IT">Italien</option>
-              </select>
             </div>
           </div>
         </div>
@@ -583,6 +615,14 @@ export default function RegistrationWizard({ tour }) {
               </span>
               <span>Teilnehmer:</span>
               <span className="text-right font-bold text-olive">{formData.firstName} {formData.lastName}</span>
+              {chargeTotal && (
+                <>
+                  <span>Zu zahlen (inkl. Zuschläge):</span>
+                  <span className="text-right font-bold text-terracotta text-sm">
+                    {formatPrice(chargeTotal.amount, chargeTotal.currency)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -606,12 +646,26 @@ export default function RegistrationWizard({ tour }) {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary py-3 px-6 font-semibold w-full text-center cursor-pointer shadow-md text-base"
+              className="btn-primary py-3 px-6 font-semibold w-full text-center cursor-pointer shadow-md text-base flex items-center justify-center gap-2"
             >
-              {loading ? "Übermittlung läuft..." : "Kostenpflichtig anmelden"}
+              {loading ? (
+                "Weiterleitung zu Stripe…"
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4" />
+                  Verbindlich anmelden &amp; zur Zahlung
+                  {chargeTotal
+                    ? ` (${formatPrice(chargeTotal.amount, chargeTotal.currency)})`
+                    : ""}
+                </>
+              )}
             </button>
             <p className="text-[10px] text-ink/50 text-center mt-2 leading-tight">
-              Hinweis: Die Rechnungsstellung und Zahlungsabwicklung erfolgt offline per Post-Rechnung und Banküberweisung. Sie zahlen erst nach Erhalt der Bestätigung.
+              Nach dem Absenden werden Sie zur sicheren Stripe-Zahlung weitergeleitet. Betrag gemäss gewähltem Paket
+              {formData.roomType === "SINGLE" && singleRoomSurcharge
+                ? " inkl. Einzelzimmer-Zuschlag"
+                : ""}
+              .
             </p>
           </div>
         </form>

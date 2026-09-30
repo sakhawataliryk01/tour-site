@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { deleteCloudinaryImage, uploadTourImage } from "@/lib/cloudinary";
+import { deleteUploadedImage, uploadTourImage } from "@/lib/uploads";
+import { sanitizeRichText } from "@/lib/sanitize-html";
 
 function slugify(text) {
   return text
@@ -17,6 +18,48 @@ function slugify(text) {
     .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+/**
+ * Resolve a valid User.id from the current session.
+ * After DB reseed / switching Neon→local, JWT may still hold an old UUID.
+ */
+async function resolveActorId(session) {
+  const candidateId = session?.user?.id;
+  const email = session?.user?.email;
+
+  if (candidateId) {
+    const byId = await prisma.user.findUnique({
+      where: { id: candidateId },
+      select: { id: true },
+    });
+    if (byId) return byId.id;
+  }
+
+  if (email) {
+    const byEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (byEmail) return byEmail.id;
+  }
+
+  return null;
+}
+
+async function requireActorId(session) {
+  const actorId = await resolveActorId(session);
+  if (!actorId) {
+    return {
+      ok: false,
+      response: {
+        success: false,
+        message:
+          "Ihre Sitzung ist veraltet (z. B. nach Datenbank-Wechsel). Bitte abmelden und erneut anmelden.",
+      },
+    };
+  }
+  return { ok: true, actorId };
 }
 
 function daysBetween(start, end) {
@@ -53,19 +96,19 @@ async function persistUploadedHero({ file, alt, userId }) {
 
   return prisma.media.create({
     data: {
-      storageKey: uploaded.publicId,
+      storageKey: uploaded.storageKey,
       url: uploaded.url,
       mime: uploaded.mime,
       width: uploaded.width,
       height: uploaded.height,
-      alt: alt || uploaded.alt,
-      createdById: userId,
+      alt: alt || null,
+      createdById: userId || null,
     },
   });
 }
 
 /**
- * Create a new tour from admin form (optional Cloudinary hero image)
+ * Create a new tour from admin form (optional hero image → local disk + Sharp)
  */
 export async function createTour(prevState, formData) {
   try {
@@ -73,6 +116,10 @@ export async function createTour(prevState, formData) {
     if (!session?.user) {
       return { success: false, message: "Nicht autorisiert." };
     }
+
+    const actor = await requireActorId(session);
+    if (!actor.ok) return actor.response;
+    const { actorId } = actor;
 
     const heroFile = formData.get("heroImage");
     formData.delete("heroImage");
@@ -103,7 +150,7 @@ export async function createTour(prevState, formData) {
       heroMedia = await persistUploadedHero({
         file: heroFile,
         alt: validated.title,
-        userId: session.user.id,
+        userId: actorId,
       });
     } catch (uploadError) {
       console.error("Hero upload failed:", uploadError);
@@ -124,12 +171,12 @@ export async function createTour(prevState, formData) {
         durationDays,
         category: validated.category,
         excerpt: validated.excerpt || null,
-        overview: validated.overview || null,
+        overview: sanitizeRichText(validated.overview),
         minParticipants: validated.minParticipants,
         targetGroupSize: validated.targetGroupSize,
         registrationMode: validated.registrationMode,
         status: validated.status,
-        createdById: session.user.id,
+        createdById: actorId,
         heroMediaId: heroMedia?.id || null,
         capacity: {
           create: {
@@ -155,7 +202,7 @@ export async function createTour(prevState, formData) {
 
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId,
         action: "CREATE",
         entityType: "Tour",
         entityId: tour.id,
@@ -191,7 +238,181 @@ export async function createTour(prevState, formData) {
 }
 
 /**
- * Replace tour hero image — uploads new Cloudinary asset and deletes the old one.
+ * Update core tour fields (title, dates, capacity, primary price, texts).
+ */
+export async function updateTour(tourId, prevState, formData) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, message: "Nicht autorisiert." };
+    }
+
+    const actor = await requireActorId(session);
+    if (!actor.ok) return actor.response;
+    const { actorId } = actor;
+
+    if (!tourId) {
+      return { success: false, message: "Reise-ID fehlt." };
+    }
+
+    const heroFile = formData.get("heroImage");
+    formData.delete("heroImage");
+
+    const raw = Object.fromEntries(formData.entries());
+    const validated = createTourSchema.parse(raw);
+
+    const existing = await prisma.tour.findUnique({
+      where: { id: tourId },
+      include: {
+        prices: { orderBy: { sortOrder: "asc" }, take: 1 },
+        capacity: true,
+      },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Reise nicht gefunden." };
+    }
+
+    const startDate = new Date(validated.startDate);
+    const endDate = new Date(validated.endDate);
+
+    if (endDate < startDate) {
+      return {
+        success: false,
+        message: "Das Enddatum darf nicht vor dem Startdatum liegen.",
+      };
+    }
+
+    const durationDays = daysBetween(startDate, endDate);
+
+    let heroMediaId = existing.heroMediaId;
+    if (heroFile && typeof heroFile !== "string" && heroFile.size > 0) {
+      try {
+        const heroMedia = await persistUploadedHero({
+          file: heroFile,
+          alt: validated.title,
+          userId: actorId,
+        });
+        if (heroMedia) {
+          heroMediaId = heroMedia.id;
+          if (existing.heroMediaId) {
+            const old = await prisma.media.findUnique({
+              where: { id: existing.heroMediaId },
+            });
+            if (old?.storageKey) {
+              await deleteUploadedImage(old.storageKey);
+            }
+          }
+        }
+      } catch (uploadError) {
+        console.error("Hero upload failed:", uploadError);
+        return {
+          success: false,
+          message: uploadError.message || "Bild-Upload fehlgeschlagen.",
+        };
+      }
+    }
+
+    const tour = await prisma.tour.update({
+      where: { id: tourId },
+      data: {
+        title: validated.title,
+        subtitle: validated.subtitle || null,
+        year: validated.year,
+        startDate,
+        endDate,
+        durationDays,
+        category: validated.category,
+        excerpt: validated.excerpt || null,
+        overview: sanitizeRichText(validated.overview),
+        minParticipants: validated.minParticipants,
+        targetGroupSize: validated.targetGroupSize,
+        registrationMode: validated.registrationMode,
+        status: validated.status,
+        heroMediaId,
+        capacity: existing.capacity
+          ? {
+              update: {
+                doubleRooms: validated.doubleRooms,
+                singleRooms: validated.singleRooms,
+              },
+            }
+          : {
+              create: {
+                doubleRooms: validated.doubleRooms,
+                singleRooms: validated.singleRooms,
+              },
+            },
+      },
+    });
+
+    if (existing.prices?.[0]) {
+      await prisma.tourPriceOption.update({
+        where: { id: existing.prices[0].id },
+        data: {
+          label: validated.priceLabel,
+          amount: validated.priceAmount,
+          currency: validated.priceCurrency,
+        },
+      });
+    } else {
+      await prisma.tourPriceOption.create({
+        data: {
+          tourId,
+          code: "LAND",
+          label: validated.priceLabel,
+          currency: validated.priceCurrency,
+          amount: validated.priceAmount,
+          includesFlight: false,
+          roomType: "DOUBLE",
+          sortOrder: 0,
+        },
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorId,
+        action: "UPDATE",
+        entityType: "Tour",
+        entityId: tour.id,
+        metadata: JSON.stringify({ slug: tour.slug, title: tour.title }),
+      },
+    });
+
+    revalidatePath("/admin/reisen");
+    revalidatePath("/reisen");
+    revalidatePath(`/reisen/${tour.slug}`);
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: `Reise „${tour.title}“ wurde aktualisiert.`,
+      tourId: tour.id,
+      slug: tour.slug,
+    };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        errors: error.flatten().fieldErrors,
+        message: "Bitte prüfen Sie die markierten Felder.",
+      };
+    }
+    console.error("Error updating tour:", error);
+    return { success: false, message: "Fehler beim Aktualisieren der Reise." };
+  }
+}
+
+/**
+ * Soft-delete: archive a tour so it leaves the public catalogue.
+ */
+export async function archiveTour(tourId) {
+  return setTourStatus(tourId, "ARCHIVED");
+}
+
+/**
+ * Replace tour hero image — Sharp-optimized WebP on local disk.
  */
 export async function updateTourHeroImage(tourId, formData) {
   try {
@@ -199,6 +420,10 @@ export async function updateTourHeroImage(tourId, formData) {
     if (!session?.user) {
       return { success: false, message: "Nicht autorisiert." };
     }
+
+    const actor = await requireActorId(session);
+    if (!actor.ok) return actor.response;
+    const { actorId } = actor;
 
     const file = formData.get("heroImage");
     if (!file || file.size === 0) {
@@ -219,7 +444,7 @@ export async function updateTourHeroImage(tourId, formData) {
       newMedia = await persistUploadedHero({
         file,
         alt: tour.title,
-        userId: session.user.id,
+        userId: actorId,
       });
     } catch (uploadError) {
       return {
@@ -235,9 +460,9 @@ export async function updateTourHeroImage(tourId, formData) {
       data: { heroMediaId: newMedia.id },
     });
 
-    // Delete previous Cloudinary asset + Media row after successful swap
+    // Delete previous file + Media row after successful swap
     if (oldMedia) {
-      await deleteCloudinaryImage(oldMedia.storageKey);
+      await deleteUploadedImage(oldMedia.storageKey);
       try {
         await prisma.media.delete({ where: { id: oldMedia.id } });
       } catch (err) {
@@ -248,7 +473,7 @@ export async function updateTourHeroImage(tourId, formData) {
 
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId,
         action: "UPDATE_HERO",
         entityType: "Tour",
         entityId: tour.id,
@@ -266,7 +491,7 @@ export async function updateTourHeroImage(tourId, formData) {
 
     return {
       success: true,
-      message: "Titelbild aktualisiert. Das vorherige Bild wurde in Cloudinary gelöscht.",
+      message: "Titelbild aktualisiert. Das vorherige Bild wurde gelöscht.",
       url: newMedia.url,
     };
   } catch (error) {
@@ -276,7 +501,7 @@ export async function updateTourHeroImage(tourId, formData) {
 }
 
 /**
- * Remove tour hero image and delete Cloudinary asset.
+ * Remove tour hero image and delete the file on disk.
  */
 export async function removeTourHeroImage(tourId) {
   try {
@@ -301,7 +526,7 @@ export async function removeTourHeroImage(tourId) {
       data: { heroMediaId: null },
     });
 
-    await deleteCloudinaryImage(oldMedia.storageKey);
+    await deleteUploadedImage(oldMedia.storageKey);
     try {
       await prisma.media.delete({ where: { id: oldMedia.id } });
     } catch {
@@ -401,10 +626,74 @@ export async function updateRegistration(id, data) {
     });
 
     revalidatePath("/admin/anmeldungen");
+    revalidatePath(`/admin/anmeldungen/${id}`);
     return { success: true, message: "Buchung erfolgreich aktualisiert!" };
   } catch (error) {
     console.error("Error updating registration:", error);
     return { success: false, message: "Fehler beim Aktualisieren der Buchung." };
+  }
+}
+
+export async function syncRegistrationPaymentFromStripe(id) {
+  try {
+    const session = await auth();
+    if (!session || !session.user) {
+      return { success: false, message: "Nicht autorisiert." };
+    }
+
+    const registration = await prisma.registration.findUnique({ where: { id } });
+    if (!registration) {
+      return { success: false, message: "Buchung nicht gefunden." };
+    }
+
+    if (registration.paymentStatus === "FINAL_PAID") {
+      return { success: true, message: "Zahlung ist bereits als bezahlt markiert.", paymentStatus: "FINAL_PAID" };
+    }
+
+    if (!registration.stripeCheckoutSessionId) {
+      return {
+        success: false,
+        message: "Keine Stripe-Session hinterlegt — Sync nicht möglich.",
+      };
+    }
+
+    const { getStripe, isStripeConfigured } = await import("@/lib/stripe");
+    const { fulfillPaidCheckoutSession } = await import("@/lib/stripe-fulfillment");
+
+    if (!isStripeConfigured()) {
+      return { success: false, message: "Stripe ist nicht konfiguriert." };
+    }
+
+    const stripe = getStripe();
+    const checkoutSession = await stripe.checkout.sessions.retrieve(
+      registration.stripeCheckoutSessionId,
+    );
+
+    const result = await fulfillPaidCheckoutSession(checkoutSession);
+    revalidatePath("/admin/anmeldungen");
+    revalidatePath(`/admin/anmeldungen/${id}`);
+
+    if (result.ok) {
+      return {
+        success: true,
+        message: result.alreadyPaid
+          ? "Bereits bezahlt."
+          : "Zahlung von Stripe übernommen — Status: Vollständig bezahlt.",
+        paymentStatus: "FINAL_PAID",
+      };
+    }
+
+    return {
+      success: false,
+      message: `Stripe meldet diese Session noch nicht als bezahlt (${checkoutSession.payment_status}).`,
+      paymentStatus: registration.paymentStatus,
+    };
+  } catch (error) {
+    console.error("syncRegistrationPaymentFromStripe failed:", error);
+    return {
+      success: false,
+      message: error.message || "Sync mit Stripe fehlgeschlagen.",
+    };
   }
 }
 

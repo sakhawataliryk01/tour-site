@@ -5,7 +5,7 @@ import { getTours } from '@/lib/services';
 
 export const metadata = {
   title: 'Christliche Israelreisen — Übersicht alle Saisons',
-  description: 'Durchsuchen Sie alle anstehenden christlichen Israelreisen von Beth-Shalom für die Saisons 2026 und 2027. Sichern Sie sich jetzt Ihren Platz.',
+  description: 'Durchsuchen Sie alle anstehenden christlichen Israelreisen von Kaiser Tours für die Saisons 2026 und 2027. Sichern Sie sich jetzt Ihren Platz.',
 };
 
 export const dynamic = "force-dynamic";

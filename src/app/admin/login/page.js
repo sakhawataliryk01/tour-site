@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
+import Image from "next/image";
 import { authenticate } from "@/app/actions/auth";
 import { LogIn, Key, Mail, AlertCircle } from "lucide-react";
+import { site } from "@/lib/site";
 
 export default function AdminLoginPage() {
   const [errorMessage, formAction, isPending] = useActionState(
@@ -14,11 +16,15 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-paper flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-md w-full space-y-8 bg-paper-dark border border-stone-light p-8 rounded-xl shadow-md">
         {/* Title */}
-        <div className="text-center space-y-2">
-          <span className="text-2xl">🕊️</span>
-          <h1 className="text-3xl font-serif font-bold text-olive">
-            Beth-Shalom
-          </h1>
+        <div className="text-center space-y-3">
+          <Image
+            src={site.logos.light}
+            alt={site.name}
+            width={200}
+            height={104}
+            className="mx-auto h-16 w-auto"
+            priority
+          />
           <p className="text-xs text-ink/60 font-semibold uppercase tracking-wider">
             Reiseportal-Verwaltung
           </p>
@@ -51,7 +57,7 @@ export default function AdminLoginPage() {
                   required
                   autoComplete="email"
                   className="w-full bg-paper pl-10 pr-3 py-3 border border-stone rounded-md focus:border-olive focus:outline-none"
-                  placeholder="admin@beth-shalom.reisen"
+                  placeholder="admin@kaiser-tours.de"
                 />
               </div>
             </div>

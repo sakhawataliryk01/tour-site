@@ -48,7 +48,8 @@ body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans), system-ui, sans-serif;
-  overflow-x: hidden;
+  /* clip avoids horizontal bleed without breaking position:sticky (unlike overflow-x: hidden) */
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -120,4 +121,115 @@ h1, h2, h3, h4, h5, h6 {
 .btn-outline:hover {
   border-color: var(--color-olive);
   background-color: var(--color-stone-light);
+}
+
+/* TipTap editor surface */
+.tiptap {
+  outline: none;
+  line-height: 1.6;
+}
+.tiptap p.is-editor-empty:first-child::before {
+  color: color-mix(in srgb, var(--color-ink) 40%, transparent);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap p {
+  margin: 0 0 0.65em;
+}
+.tiptap h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.9em 0 0.4em;
+}
+.tiptap h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0.8em 0 0.35em;
+}
+.tiptap ul {
+  list-style: disc;
+  margin: 0.4em 0 0.7em;
+  padding-left: 1.35rem;
+}
+.tiptap ol {
+  list-style: decimal;
+  margin: 0.4em 0 0.7em;
+  padding-left: 1.35rem;
+}
+.tiptap blockquote {
+  border-left: 3px solid var(--color-terracotta);
+  margin: 0.7em 0;
+  padding-left: 0.85em;
+  font-style: italic;
+}
+.tiptap a {
+  color: var(--color-terracotta);
+  text-decoration: underline;
+}
+.tiptap hr {
+  border: 0;
+  border-top: 1px solid var(--color-stone);
+  margin: 0.9em 0;
+}
+
+/* Rendered rich text (tour overview etc.) */
+.rich-text {
+  line-height: 1.65;
+}
+.rich-text p {
+  margin: 0 0 0.75em;
+}
+.rich-text p:last-child {
+  margin-bottom: 0;
+}
+.rich-text h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-olive);
+  margin: 1.1em 0 0.45em;
+}
+.rich-text h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-olive);
+  margin: 1em 0 0.4em;
+}
+.rich-text ul,
+.rich-text ol {
+  margin: 0.5em 0 0.85em;
+  padding-left: 1.35rem;
+}
+.rich-text ul {
+  list-style: disc;
+}
+.rich-text ol {
+  list-style: decimal;
+}
+.rich-text li {
+  margin: 0.2em 0;
+}
+.rich-text blockquote {
+  border-left: 3px solid var(--color-terracotta);
+  margin: 0.85em 0;
+  padding: 0.15em 0 0.15em 0.9em;
+  color: color-mix(in srgb, var(--color-ink) 75%, transparent);
+  font-style: italic;
+}
+.rich-text a {
+  color: var(--color-terracotta);
+  text-decoration: underline;
+}
+.rich-text hr {
+  border: 0;
+  border-top: 1px solid var(--color-stone);
+  margin: 1.1em 0;
+}
+.rich-text strong {
+  font-weight: 700;
 }

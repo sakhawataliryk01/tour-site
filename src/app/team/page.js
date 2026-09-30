@@ -47,7 +47,7 @@ export default async function TeamPage() {
               </span>
             )}
             <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-olive/80" /> Beth-Shalom Haifa
+              <MapPin className="w-3.5 h-3.5 text-olive/80" /> Israel
             </span>
           </div>
         </div>
@@ -66,7 +66,7 @@ export default async function TeamPage() {
               Unser Team & Reiseleitung
             </h1>
             <p className="text-base text-ink/75 font-sans leading-relaxed font-medium">
-              Die Menschen hinter Beth-Shalom. Mit fachkundigem Wissen, organisatorischer Sorgfalt und geistlicher Tiefe begleiten wir Sie auf Ihrer Reise durch das Land der Bibel.
+              Die Menschen hinter Kaiser Tours. Mit fachkundigem Wissen und organisatorischer Sorgfalt begleiten wir Sie auf Ihrer Reise durch das Land der Bibel.
             </p>
           </div>
 

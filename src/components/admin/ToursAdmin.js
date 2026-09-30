@@ -5,22 +5,27 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
+  Archive,
   CheckCircle,
   Copy,
   ExternalLink,
   Eye,
   EyeOff,
   ImagePlus,
+  Pencil,
   Plus,
   X,
 } from 'lucide-react';
 import DataTable from '@/components/ui/DataTable';
 import TourThumbnail from '@/components/admin/TourThumbnail';
 import TourImageField from '@/components/admin/TourImageField';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import {
+  archiveTour,
   createTour,
   duplicateTour,
   setTourStatus,
+  updateTour,
   updateTourHeroImage,
 } from '@/app/actions/admin';
 
@@ -40,7 +45,7 @@ const emptyForm = {
   priceLabel: 'Landprogramm (ohne Flug)',
   priceAmount: '',
   priceCurrency: 'EUR',
-  registrationMode: 'CLOSED',
+  registrationMode: 'OPEN',
   status: 'DRAFT',
 };
 
@@ -81,6 +86,7 @@ export default function ToursAdmin({
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [heroFile, setHeroFile] = useState(null);
   const [errors, setErrors] = useState({});
@@ -93,7 +99,52 @@ export default function ToursAdmin({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleCreate = async (e) => {
+  const openCreateForm = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setHeroFile(null);
+    setErrors({});
+    setFeedback(null);
+    setShowForm(true);
+  };
+
+  const openEditForm = (tour) => {
+    const primaryPrice = tour.prices?.[0];
+    setEditingId(tour.id);
+    setForm({
+      title: tour.title || '',
+      subtitle: tour.subtitle || '',
+      year: tour.year || new Date().getFullYear(),
+      startDate: tour.startDate ? String(tour.startDate).slice(0, 10) : '',
+      endDate: tour.endDate ? String(tour.endDate).slice(0, 10) : '',
+      category: tour.category || 'STANDARD',
+      excerpt: tour.excerpt || '',
+      overview: tour.overview || '',
+      minParticipants: tour.minParticipants ?? 22,
+      targetGroupSize: tour.targetGroupSize ?? 27,
+      doubleRooms: tour.capacity?.doubleRooms ?? 15,
+      singleRooms: tour.capacity?.singleRooms ?? 5,
+      priceLabel: primaryPrice?.label || 'Landprogramm (ohne Flug)',
+      priceAmount: primaryPrice?.amount ?? '',
+      priceCurrency: primaryPrice?.currency || 'EUR',
+      registrationMode: tour.registrationMode || 'CLOSED',
+      status: tour.status === 'ARCHIVED' ? 'DRAFT' : tour.status || 'DRAFT',
+    });
+    setHeroFile(null);
+    setErrors({});
+    setFeedback(null);
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    setHeroFile(null);
+    setErrors({});
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setCreating(true);
     setFeedback(null);
@@ -105,14 +156,14 @@ export default function ToursAdmin({
     });
     if (heroFile) formData.append('heroImage', heroFile);
 
-    const res = await createTour(null, formData);
+    const res = editingId
+      ? await updateTour(editingId, null, formData)
+      : await createTour(null, formData);
     setCreating(false);
 
     if (res.success) {
       setFeedback({ success: true, message: res.message });
-      setShowForm(false);
-      setForm(emptyForm);
-      setHeroFile(null);
+      closeForm();
       router.refresh();
     } else {
       setErrors(res.errors || {});
@@ -144,6 +195,21 @@ export default function ToursAdmin({
     setFeedback({
       success: !!res.success,
       message: res.message || (res.success ? 'Status aktualisiert.' : 'Fehler'),
+    });
+    if (res.success) router.refresh();
+  };
+
+  const handleArchive = async (tourId) => {
+    if (!window.confirm('Reise wirklich archivieren? Sie verschwindet von der öffentlichen Website.')) {
+      return;
+    }
+    setLoadingId(tourId);
+    setFeedback(null);
+    const res = await archiveTour(tourId);
+    setLoadingId(null);
+    setFeedback({
+      success: !!res.success,
+      message: res.message || (res.success ? 'Archiviert.' : 'Fehler'),
     });
     if (res.success) router.refresh();
   };
@@ -294,12 +360,33 @@ export default function ToursAdmin({
             <button
               type="button"
               disabled={loadingId === tour.id}
+              onClick={() => openEditForm(tour)}
+              className="inline-flex items-center gap-1 px-2 py-1.5 border border-stone rounded bg-paper text-[10px] font-bold text-olive hover:text-terracotta cursor-pointer disabled:opacity-50"
+              title="Bearbeiten"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">Bearbeiten</span>
+            </button>
+            <button
+              type="button"
+              disabled={loadingId === tour.id}
               onClick={() => handleDuplicate(tour.id)}
               className="inline-flex items-center gap-1 px-2 py-1.5 border border-stone rounded bg-paper text-[10px] font-bold text-olive hover:text-terracotta cursor-pointer disabled:opacity-50"
             >
               <Copy className="h-3.5 w-3.5" />
               <span className="hidden xl:inline">Duplizieren</span>
             </button>
+            {tour.status !== 'ARCHIVED' ? (
+              <button
+                type="button"
+                disabled={loadingId === tour.id}
+                onClick={() => handleArchive(tour.id)}
+                className="inline-flex items-center gap-1 px-2 py-1.5 border border-stone rounded bg-paper text-[10px] font-bold text-ink/50 hover:text-terracotta cursor-pointer disabled:opacity-50"
+                title="Archivieren"
+              >
+                <Archive className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
           </div>
         ),
       },
@@ -316,9 +403,11 @@ export default function ToursAdmin({
         <button
           type="button"
           onClick={() => {
-            setShowForm((v) => !v);
-            setFeedback(null);
-            setErrors({});
+            if (showForm) {
+              closeForm();
+            } else {
+              openCreateForm();
+            }
           }}
           className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm self-start sm:self-auto"
         >
@@ -352,11 +441,13 @@ export default function ToursAdmin({
 
       <div className={showForm ? 'block' : 'hidden'}>
         <form
-          onSubmit={handleCreate}
+          onSubmit={handleSubmit}
           className="bg-paper-dark border border-stone p-6 rounded-xl space-y-5 shadow-sm"
         >
           <div className="border-b border-stone-light pb-3">
-            <h2 className="text-lg font-serif font-bold text-olive">Neue Israelreise anlegen</h2>
+            <h2 className="text-lg font-serif font-bold text-olive">
+              {editingId ? 'Reise bearbeiten' : 'Neue Israelreise anlegen'}
+            </h2>
             <p className="text-xs text-ink/55 font-semibold mt-1">
               Basisdaten, Titelbild (16:9), Kapazität und Startpreis.
             </p>
@@ -526,16 +617,20 @@ export default function ToursAdmin({
                 value={form.excerpt}
                 onChange={(e) => updateField('excerpt', e.target.value)}
                 className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none font-medium"
+                placeholder="Kurzer Teaser für Karten & SEO (Klartext)"
               />
             </div>
 
             <div className="md:col-span-2 space-y-1">
-              <label className="block text-[10px] uppercase text-ink/55">Überblick</label>
-              <textarea
-                rows={4}
+              <label className="block text-[10px] uppercase text-ink/55">
+                Überblick (Hauptbeschreibung)
+              </label>
+              <RichTextEditor
+                key={editingId || 'new-tour'}
                 value={form.overview}
-                onChange={(e) => updateField('overview', e.target.value)}
-                className="w-full bg-paper p-3 border border-stone rounded-md focus:border-olive focus:outline-none font-medium"
+                onChange={(html) => updateField('overview', html)}
+                placeholder="Ausführliche Reisebeschreibung mit Formatierung…"
+                minHeightClass="min-h-[220px]"
               />
             </div>
           </div>
@@ -543,7 +638,7 @@ export default function ToursAdmin({
           <div className="flex justify-end gap-3 pt-2 border-t border-stone-light">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={closeForm}
               className="px-4 py-2 text-xs font-bold border border-stone rounded-md text-ink/60 hover:bg-paper cursor-pointer"
             >
               Abbrechen
@@ -553,7 +648,11 @@ export default function ToursAdmin({
               disabled={creating}
               className="btn-primary py-2 px-5 text-xs font-bold cursor-pointer disabled:opacity-50"
             >
-              {creating ? 'Wird angelegt…' : 'Reise speichern'}
+              {creating
+                ? 'Wird gespeichert…'
+                : editingId
+                  ? 'Änderungen speichern'
+                  : 'Reise speichern'}
             </button>
           </div>
         </form>

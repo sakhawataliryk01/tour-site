@@ -4,7 +4,8 @@ import { use, useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { submitContactInquiry, submitGroupInquiry } from "@/app/actions/inquiries";
-import { Mail, Phone, MapPin, CheckCircle, AlertCircle, HelpCircle, Users } from "lucide-react";
+import { Mail, Phone, MapPin, CheckCircle, AlertCircle, HelpCircle, Users, Info } from "lucide-react";
+import { site } from "@/lib/site";
 
 export default function KontaktPage({ searchParams: searchParamsPromise }) {
   // Support Next.js 15 searchParams resolution
@@ -88,48 +89,31 @@ export default function KontaktPage({ searchParams: searchParamsPromise }) {
             <div className="lg:col-span-5 space-y-8 font-sans">
               <div className="bg-paper-dark border border-stone-light/60 p-6 rounded-xl space-y-5">
                 <h2 className="text-xl font-serif font-bold text-olive border-b border-stone-light pb-2">
-                  Büro Schweiz
-                </h2>
-                <div className="space-y-4 text-sm text-ink/80 font-medium">
-                  <div className="flex gap-3">
-                    <MapPin className="w-5 h-5 text-terracotta flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-olive">Missionswerk Mitternachtsruf</p>
-                      <p>Ringstrasse 12</p>
-                      <p>CH-8600 Dübendorf</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Phone className="w-5 h-5 text-terracotta flex-shrink-0" />
-                    <p>+41 (0)44 801 80 00</p>
-                  </div>
-                  <div className="flex gap-3">
-                    <Mail className="w-5 h-5 text-terracotta flex-shrink-0" />
-                    <p>reisen@mitternachtsruf.ch</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-paper-dark border border-stone-light/60 p-6 rounded-xl space-y-5">
-                <h2 className="text-xl font-serif font-bold text-olive border-b border-stone-light pb-2">
                   Büro Deutschland
                 </h2>
                 <div className="space-y-4 text-sm text-ink/80 font-medium">
                   <div className="flex gap-3">
                     <MapPin className="w-5 h-5 text-terracotta flex-shrink-0" />
                     <div>
-                      <p className="font-bold text-olive">Missionswerk Mitternachtsruf</p>
-                      <p>In den Weiden 17</p>
-                      <p>D-72285 Waldachtal</p>
+                      <p className="font-bold text-olive">{site.address.company}</p>
+                      <p>{site.address.street}</p>
+                      <p>
+                        {site.address.zip} {site.address.city}
+                      </p>
+                      <p>{site.address.country}</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <Phone className="w-5 h-5 text-terracotta flex-shrink-0" />
-                    <p>+49 (0)7445 85 01 0</p>
+                    <a href={`tel:${site.phone.deTel}`} className="hover:text-terracotta">
+                      {site.phone.de}
+                    </a>
                   </div>
                   <div className="flex gap-3">
                     <Mail className="w-5 h-5 text-terracotta flex-shrink-0" />
-                    <p>reisen@mitternachtsruf.de</p>
+                    <a href={`mailto:${site.email.info}`} className="hover:text-terracotta">
+                      {site.email.info}
+                    </a>
                   </div>
                 </div>
               </div>
@@ -137,7 +121,7 @@ export default function KontaktPage({ searchParams: searchParamsPromise }) {
               <div className="bg-paper p-5 rounded-lg border border-stone-light flex gap-3 text-xs text-ink/70">
                 <Info className="w-5 h-5 text-olive flex-shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  Unsere Büros sind von Montag bis Freitag von 08:00 bis 12:00 Uhr und von 13:30 bis 17:00 Uhr besetzt. Am Wochenende und an Feiertagen bleibt das Büro geschlossen.
+                  Unser Büro ist von Montag bis Freitag von 09:00 bis 17:00 Uhr erreichbar. Am Wochenende und an Feiertagen bleibt das Büro geschlossen. Für dringende Reiseanfragen nutzen Sie bitte das Kontaktformular.
                 </p>
               </div>
             </div>

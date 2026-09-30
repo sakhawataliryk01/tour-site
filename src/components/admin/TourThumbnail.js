@@ -2,20 +2,13 @@
 
 import Image from 'next/image';
 import { ImageIcon } from 'lucide-react';
-import { getOptimizedImageUrl, isCloudinaryPublicId } from '@/lib/cloudinary-url';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 /**
- * Small 16:9 thumbnail for admin tables (64×36 display, 128×72 fetch).
+ * Small 16:9 thumbnail for admin tables.
  */
 export default function TourThumbnail({ media, alt = 'Titelbild' }) {
-  const key = media?.storageKey;
-  const src =
-    (key && isCloudinaryPublicId(key)
-      ? getOptimizedImageUrl(key, { width: 128, height: 72 })
-      : null) ||
-    (media?.url && isCloudinaryPublicId(media.url)
-      ? getOptimizedImageUrl(media.url, { width: 128, height: 72 })
-      : null);
+  const src = resolveMediaUrl(media);
 
   return (
     <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded border border-stone-light/70 bg-stone-light/40">

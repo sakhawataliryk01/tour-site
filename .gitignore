@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# uploaded tour images (local driver)
+/public/uploads/tours/*
+!/public/uploads/tours/.gitkeep
+
+
 # vercel
 .vercel
 
