@@ -21,6 +21,7 @@
 /build
 
 # misc
+temp_auto_push.bat
 .DS_Store
 *.pem
 
@@ -44,3 +45,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.gitignore
+branch_structure.json
